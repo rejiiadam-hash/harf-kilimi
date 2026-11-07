@@ -377,12 +377,11 @@ function prepWords(src){
 
 /* 1000 levels, difficulty rises by stage: more letters, more words, rarer words, fewer 3-letter words */
 const STAGES=[
-  {to:30,  len:5,n:[3,4],src:'T',min:4,threes:2},
-  {to:150, len:5,n:[4,5],src:'T',min:5,threes:2},
-  {to:260, len:6,n:[5,5],src:'T',min:5,threes:2},
-  {to:450, len:6,n:[5,6],src:'A',min:6,threes:1},
-  {to:700, len:7,n:[6,7],src:'A',min:7,threes:1},
-  {to:1000,len:7,n:[7,8],src:'A',min:8,threes:0,long:true}];
+  {to:100, len:5,n:[6,6],src:'T',min:6,threes:3},
+  {to:250, len:6,n:[6,6],src:'T',min:6,threes:2},
+  {to:450, len:6,n:[6,7],src:'A',min:7,threes:2},
+  {to:700, len:7,n:[7,7],src:'A',min:7,threes:1},
+  {to:1000,len:7,n:[8,8],src:'A',min:8,threes:0,long:true}];
 const LEVEL_COUNT=1000;
 
 function pickTargets(seed,sub,max,st,rnd,isT){
@@ -419,7 +418,7 @@ function genLevels(T,E){
     const need=st.to-prevTo;prevTo=st.to;
     let got=0;
     // try the stage's own rules first, then relax (wider word source, fewer words) so the count is always reached
-    const tries=[[st.src,st.min],['A',st.min],['A',st.min-1],['A',st.min-2],['A',3]];
+    const tries=[[st.src,st.min],['A',st.min],['A',6]];
     for(const [src,min] of tries){
       if(got>=need)break;
       const cands=shuffle((src==='T'?infoT:infoA).filter(o=>o.len===st.len),rnd);
