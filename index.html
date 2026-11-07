@@ -28,10 +28,10 @@
 html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--red)}
 body{font-family:system-ui,"Roboto","Noto Sans",sans-serif;color:var(--cream);touch-action:manipulation;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-font-smoothing:antialiased;
-  background:radial-gradient(120% 80% at 50% 30%,#8e2735 0%,var(--red) 55%,#5c1520 100%);}
-body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.06;z-index:0;
-  background:repeating-linear-gradient(45deg,var(--cream) 0 2px,transparent 2px 22px),
-             repeating-linear-gradient(-45deg,var(--cream) 0 2px,transparent 2px 22px);}
+  background:radial-gradient(120% 80% at 50% 30%,var(--bg1,#8e2735) 0%,var(--red) 55%,var(--bg3,#5c1520) 100%);transition:background .4s}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:var(--patop,.06);z-index:0;
+  background:var(--pat,repeating-linear-gradient(45deg,var(--cream) 0 2px,transparent 2px 22px),
+             repeating-linear-gradient(-45deg,var(--cream) 0 2px,transparent 2px 22px));}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
 button:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
 #app{position:fixed;inset:0;z-index:1}
@@ -199,6 +199,20 @@ button:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
 .demo-hint{display:flex;gap:10px}
 .demo-hint .hbtn{width:80px;height:58px;flex:none}
 
+/* shop */
+#shopList{flex:1;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:6px 14px 24px;align-content:start}
+.th{border-radius:16px;background:var(--cream);color:var(--ink);padding:8px;display:flex;flex-direction:column;gap:8px;box-shadow:0 3px 0 rgba(0,0,0,.25);text-align:center}
+.th .pv{height:96px;border-radius:11px;position:relative;overflow:hidden;box-shadow:inset 0 0 0 2px rgba(0,0,0,.15)}
+.th .pv i{position:absolute;inset:0;opacity:var(--patop);background:var(--pat)}
+.th .pv b{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:3px}
+.th .pv b span{width:18px;height:18px;border-radius:4px;background:var(--cream);box-shadow:0 1px 0 rgba(0,0,0,.3)}
+.th .nm{font-weight:800;font-size:15px}
+.th .act{border-radius:10px;padding:8px 6px;font-weight:800;font-size:15px;display:flex;gap:6px;align-items:center;justify-content:center;background:var(--terra);color:#fff;min-height:40px}
+.th .act.own{background:var(--teal)}
+.th .act.sel{background:transparent;color:var(--ok);box-shadow:inset 0 0 0 2px var(--ok)}
+.th .act.no{background:#bfae98;color:#fff}
+.th.cur{box-shadow:0 0 0 3px var(--gold),0 3px 0 rgba(0,0,0,.25)}
+
 /* map */
 .maphead{display:flex;align-items:center;gap:10px;padding:8px 12px;flex:none;height:60px}
 .maphead h1{flex:1;font-family:"Georgia",serif;letter-spacing:.08em;font-size:24px}
@@ -250,6 +264,7 @@ button:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
     <div class="homecard">
       <button class="btn" id="bPlay">Oyna</button>
       <button class="btn teal" id="bMap">Sandık</button>
+      <button class="btn saff" id="bShop">Çarşı · Temalar</button>
       <button class="btn indigo" id="bHelp">Nasıl Oynanır?</button>
       <div class="togrow">
         <button class="tog" role="switch" data-k="sound" aria-checked="true"><span>Ses</span><span class="sw2"></span></button>
@@ -290,6 +305,14 @@ button:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
     </div>
     <div id="grid"></div>
   </section>
+  <section id="shop" class="screen" aria-label="Çarşı">
+    <div class="maphead">
+      <button class="iconbtn" id="sBack" aria-label="Geri"><span class="back"></span></button>
+      <h1>Çarşı</h1>
+      <div class="coinbox"><span class="coin"></span><span id="sCoins">0</span></div>
+    </div>
+    <div id="shopList"></div>
+  </section>
 </div>
 
 <!-- Kazanma -->
@@ -310,6 +333,7 @@ button:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
     <h2>Mola</h2>
     <button class="btn" id="mContinue">Devam Et</button>
     <button class="btn teal" id="mMap">Sandık</button>
+    <button class="btn saff" id="mShop">Çarşı · Temalar</button>
     <button class="btn indigo" id="mHelp">Nasıl Oynanır?</button>
     <button class="tog" role="switch" data-k="sound" aria-checked="true"><span>Ses</span><span class="sw2"></span></button>
     <button class="tog" role="switch" data-k="vibe" aria-checked="true"><span>Titreşim</span><span class="sw2"></span></button>
@@ -451,11 +475,11 @@ const DICTC=WL.T.concat(WL.E).map(prep);
 
 /* ================= state ================= */
 const KEY='harfKilimi.v1';
-const DEF={level:0,coins:100,score:0,stars:{},cur:null,jar:0,lastDaily:null,settings:{sound:true,vibe:true},seenHelp:false};
+const DEF={theme:'kilim',owned:['kilim'],level:0,coins:100,score:0,stars:{},cur:null,jar:0,lastDaily:null,settings:{sound:true,vibe:true},seenHelp:false};
 function load(){
   try{const o=JSON.parse(localStorage.getItem(KEY)||'null');
     if(o&&typeof o==='object'){const s=Object.assign({},DEF,o);s.settings=Object.assign({},DEF.settings,o.settings||{});s.stars=o.stars||{};
-      s.level=Math.max(0,s.level|0);s.coins=Math.max(0,s.coins|0);s.jar=s.jar|0;return s;}}catch(e){}
+      s.owned=Array.isArray(o.owned)?o.owned:['kilim'];if(!s.owned.includes('kilim'))s.owned.push('kilim');s.level=Math.max(0,s.level|0);s.coins=Math.max(0,s.coins|0);s.jar=s.jar|0;return s;}}catch(e){}
   return JSON.parse(JSON.stringify(DEF));
 }
 let S=load();
@@ -500,6 +524,7 @@ function showScreen(name){
   curScreen=name;
   if(name==='home')renderHome();
   if(name==='map')renderMap();
+  if(name==='shop')renderShop();
   if(name==='game')requestAnimationFrame(layout);
 }
 function goHome(){closeOv('menu');closeOv('win');
@@ -561,6 +586,58 @@ function renderMap(){
   const cur=grid.querySelector('.cur');if(cur)requestAnimationFrame(()=>cur.scrollIntoView({block:'center'}));
 }
 $('#mBack').addEventListener('click',goHome);
+$('#sBack').addEventListener('click',goHome);
+$('#bShop').addEventListener('click',()=>showScreen('shop'));
+$('#mShop').addEventListener('click',()=>{closeOv('menu');showScreen('shop');});
+
+/* ================= themes (Çarşı) ================= */
+const P_DIAG='repeating-linear-gradient(45deg,#F4E9D8 0 2px,transparent 2px 22px),repeating-linear-gradient(-45deg,#F4E9D8 0 2px,transparent 2px 22px)';
+const P_DOTS='radial-gradient(#F4E9D8 1.6px,transparent 2px) 0 0/18px 18px,radial-gradient(#F4E9D8 1.6px,transparent 2px) 9px 9px/18px 18px';
+const P_STARS='radial-gradient(#fff 1px,transparent 1.5px) 0 0/37px 41px,radial-gradient(#fff 1.4px,transparent 2px) 13px 19px/53px 47px,radial-gradient(#ffe9a8 1.2px,transparent 2px) 29px 7px/71px 61px';
+const P_TILE='conic-gradient(from 45deg,#F4E9D8 0 25%,transparent 0 50%,#F4E9D8 0 75%,transparent 0) 0 0/28px 28px';
+const P_WAVE='radial-gradient(circle at 50% 100%,transparent 9px,#F4E9D8 10px 11px,transparent 12px) 0 0/24px 12px';
+const P_STRIPE='repeating-linear-gradient(90deg,#F4E9D8 0 3px,transparent 3px 14px)';
+const THEMES=[
+  {id:'kilim', nm:'Kırmızı Kilim', price:0,   red:'#7A1F2B',bg1:'#8e2735',bg3:'#5c1520',pat:P_DIAG,op:.06},
+  {id:'gece',  nm:'Gece Mavisi',   price:150, red:'#1F3A5F',bg1:'#2c4f7c',bg3:'#0f1f36',pat:P_DIAG,op:.07},
+  {id:'zumrut',nm:'Zümrüt Bahçe',  price:250, red:'#1E5A46',bg1:'#2a7a5e',bg3:'#0f3326',pat:P_DOTS,op:.09},
+  {id:'cini',  nm:'Çini',          price:400, red:'#1C6E8C',bg1:'#2b93b5',bg3:'#0d3f52',pat:P_TILE,op:.07},
+  {id:'lale',  nm:'Lale Bahçesi',  price:600, red:'#7B2D6B',bg1:'#a14290',bg3:'#45163b',pat:P_DOTS,op:.08},
+  {id:'safran',nm:'Safran Çöl',    price:800, red:'#A2531B',bg1:'#c87a32',bg3:'#5e2c0b',pat:P_WAVE,op:.10},
+  {id:'zeytin',nm:'Zeytinlik',     price:1000,red:'#4F5B2A',bg1:'#6d7b3a',bg3:'#2b3214',pat:P_STRIPE,op:.06},
+  {id:'gunbatimi',nm:'Gün Batımı', price:1300,red:'#B0413E',bg1:'#e07a4f',bg3:'#4a1c3e',pat:P_WAVE,op:.08},
+  {id:'yildiz',nm:'Yıldızlı Gece', price:2000,red:'#141c3a',bg1:'#26336b',bg3:'#05081a',pat:P_STARS,op:.85}];
+function applyTheme(id){
+  const t=THEMES.find(x=>x.id===id)||THEMES[0];const r=document.documentElement.style;
+  r.setProperty('--red',t.red);r.setProperty('--bg1',t.bg1);r.setProperty('--bg3',t.bg3);r.setProperty('--pat',t.pat);r.setProperty('--patop',t.op);
+  const m=document.querySelector('meta[name=theme-color]');if(m)m.setAttribute('content',t.red);
+}
+function renderShop(){
+  $('#sCoins').textContent=S.coins;
+  const L=$('#shopList');L.innerHTML='';
+  THEMES.forEach(t=>{
+    const own=S.owned.includes(t.id),cur=S.theme===t.id;
+    const c=el('div','th'+(cur?' cur':''));
+    const pv=el('div','pv');pv.style.background='radial-gradient(120% 80% at 50% 30%,'+t.bg1+' 0%,'+t.red+' 55%,'+t.bg3+' 100%)';
+    const pi=el('i');pi.style.setProperty('--pat',t.pat);pi.style.setProperty('--patop',t.op);pv.appendChild(pi);
+    const b=el('b');for(let k=0;k<3;k++)b.appendChild(el('span'));pv.appendChild(b);
+    c.appendChild(pv);c.appendChild(el('div','nm',t.nm));
+    const a=el('button','act');
+    if(cur){a.classList.add('sel');a.textContent='✓ Kullanılıyor';}
+    else if(own){a.classList.add('own');a.textContent='Kullan';}
+    else{if(S.coins<t.price)a.classList.add('no');a.innerHTML='<span class="coin sm"></span>'+t.price;}
+    a.addEventListener('click',()=>{
+      if(cur)return;
+      if(!own){
+        if(S.coins<t.price){toast('Yeterli altının yok · '+(t.price-S.coins)+' altın daha lazım');vib(60);SND.bad();return;}
+        S.coins-=t.price;S.owned.push(t.id);toast(t.nm+' senin oldu!');SND.ok();vib(25);
+      }else{SND.tap();vib(10);}
+      S.theme=t.id;save();applyTheme(t.id);updateCoins();renderShop();
+    });
+    c.appendChild(a);L.appendChild(c);
+  });
+}
+applyTheme(S.theme);
 
 /* ---------- help ---------- */
 const HELP=[
