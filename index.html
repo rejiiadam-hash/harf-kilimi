@@ -375,65 +375,79 @@ function prepWords(src){
   return{T,E};
 }
 
-const TIERS=[{len:5,min:4,max:5,take:10},{len:6,min:5,max:6,take:10},{len:7,min:6,max:8,take:Infinity}];
+/* 1000 levels, difficulty rises by stage: more letters, more words, rarer words, fewer 3-letter words */
+const STAGES=[
+  {to:30,  len:5,n:[3,4],src:'T',min:4,threes:2},
+  {to:150, len:5,n:[4,5],src:'T',min:5,threes:2},
+  {to:260, len:6,n:[5,5],src:'T',min:5,threes:2},
+  {to:450, len:6,n:[5,6],src:'A',min:6,threes:1},
+  {to:700, len:7,n:[6,7],src:'A',min:7,threes:1},
+  {to:1000,len:7,n:[7,8],src:'A',min:8,threes:0,long:true}];
+const LEVEL_COUNT=1000;
 
-function pickTargets(seed,sub,max,rnd){
-  const rest=sub.filter(w=>w!==seed);
+function pickTargets(seed,sub,max,st,rnd,isT){
+  const rest=shuffle(sub.filter(w=>w!==seed),rnd);
+  // common words first, rarer words only in later stages
+  rest.sort((a,b)=>(isT(b)-isT(a)));
   const chosen=[seed];
-  const threes=shuffle(rest.filter(w=>w.length===3),rnd);
-  for(const w of threes.slice(0,2))if(chosen.length<max)chosen.push(w);
+  for(const w of rest.filter(w=>w.length===3).slice(0,st.threes))if(chosen.length<max)chosen.push(w);
+  const pool=rest.filter(w=>w.length>3&&!chosen.includes(w));
+  if(st.long)pool.sort((a,b)=>b.length-a.length);
   const byLen=new Map();
-  for(const w of rest){if(chosen.includes(w))continue;if(!byLen.has(w.length))byLen.set(w.length,[]);byLen.get(w.length).push(w);}
+  for(const w of pool){if(!byLen.has(w.length))byLen.set(w.length,[]);byLen.get(w.length).push(w);}
   const lens=[...byLen.keys()].sort((a,b)=>b-a);
-  lens.forEach(l=>shuffle(byLen.get(l),rnd));
   let li=0,guard=0;
-  while(chosen.length<max&&guard++<200){
+  while(chosen.length<max&&guard++<400){
     if(!lens.some(l=>byLen.get(l).length))break;
     const g=byLen.get(lens[li++%lens.length]);
-    if(g.length)chosen.push(g.pop());
+    if(g.length)chosen.push(g.shift());
   }
+  // still short: allow more 3-letter words
+  for(const w of rest)if(chosen.length<max&&!chosen.includes(w))chosen.push(w);
   return chosen.sort((a,b)=>(a.length-b.length)||trCmp(a,b));
 }
 
-function genLevels(T){
-  const info=T.map(prep);
-  const subCache=new Map();
-  const subOf=s=>{if(!subCache.has(s.w)){const sub=info.filter(o=>o.len>=3&&fits(o,s.c,s.len)).map(o=>o.w)
-      .sort((a,b)=>(b.length-a.length)||trCmp(a,b));subCache.set(s.w,sub);}return subCache.get(s.w);};
-  let best=[];
-  for(let relax=0;relax<=3;relax++){
-    const rnd=mulberry32(20240917);
-    const used=new Set(),raw=[];
-    for(const tier of TIERS){
-      const minT=Math.max(1,tier.min-relax);
-      const seeds=shuffle(info.filter(o=>o.len===tier.len),rnd);
-      let taken=0;
-      for(const s of seeds){
-        if(taken>=tier.take)break;
+function genLevels(T,E){
+  E=E||[];
+  const tS=new Set(T);const isT=w=>tS.has(w)?1:0;
+  const infoT=T.map(prep),infoA=infoT.concat(E.map(prep));
+  const subOf=(s,src)=>(src==='T'?infoT:infoA).filter(o=>o.len>=3&&fits(o,s.c,s.len)).map(o=>o.w);
+  const rnd=mulberry32(20240917);
+  const used=new Set(),out=[];
+  let prevTo=0;
+  for(const st of STAGES){
+    const need=st.to-prevTo;prevTo=st.to;
+    let got=0;
+    // try the stage's own rules first, then relax (wider word source, fewer words) so the count is always reached
+    const tries=[[st.src,st.min],['A',st.min],['A',st.min-1],['A',st.min-2],['A',3]];
+    for(const [src,min] of tries){
+      if(got>=need)break;
+      const cands=shuffle((src==='T'?infoT:infoA).filter(o=>o.len===st.len),rnd);
+      for(const s of cands){
+        if(got>=need)break;
         if(used.has(s.k))continue;
-        const sub=subOf(s);
-        if(sub.length<minT)continue;
-        used.add(s.k);taken++;
-        raw.push({seed:s.w,sub,tier});
+        const sub=subOf(s,src);
+        if(sub.length<min)continue;
+        used.add(s.k);got++;
+        out.push({seed:s.w,sub,st});
       }
     }
-    if(raw.length>best.length)best=raw;
-    if(raw.length>=30)break;
   }
-  return best.map((r,i)=>{
-    const rnd=mulberry32((20240917^Math.imul(i+1,2654435761))>>>0);
-    const targets=pickTargets(r.seed,r.sub,Math.min(8,r.tier.max),rnd);
+  return out.slice(0,LEVEL_COUNT).map((r,i)=>{
+    const rnd2=mulberry32((20240917^Math.imul(i+1,2654435761))>>>0);
+    const max=r.st.n[0]+Math.floor(rnd2()*(r.st.n[1]-r.st.n[0]+1));
+    const targets=pickTargets(r.seed,r.sub,Math.min(8,max),r.st,rnd2,isT);
     let letters=[...r.seed];
-    for(let t=0;t<30;t++){shuffle(letters,rnd);if(letters.join('')!==r.seed)break;}
-    const nazar=Math.floor(rnd()*letters.length);
+    for(let t=0;t<30;t++){shuffle(letters,rnd2);if(letters.join('')!==r.seed)break;}
+    const nazar=Math.floor(rnd2()*letters.length);
     return{seed:r.seed,targets,letters,nazar};
   });
 }
 
 let SRC=(WORDS&&typeof WORDS==='object')?WORDS:FALLBACK;
 let WL=prepWords(SRC);
-let LEVELS=genLevels(WL.T);
-if(!LEVELS.length){SRC=FALLBACK;WL=prepWords(FALLBACK);LEVELS=genLevels(WL.T);}
+let LEVELS=genLevels(WL.T,WL.E);
+if(!LEVELS.length){SRC=FALLBACK;WL=prepWords(FALLBACK);LEVELS=genLevels(WL.T,WL.E);}
 const DICTC=WL.T.concat(WL.E).map(prep);
 
 /* ================= state ================= */
@@ -615,6 +629,7 @@ function startLevel(i){
     else S.cur={level:i,found:[],revealed:{},bonus:[],hints:0};
   }
   const c=S.cur;
+  if(c.seed!==L.seed){c.found=[];c.revealed={};c.bonus=[];c.seed=L.seed;}
   c.found=(c.found||[]).filter(w=>tset.has(w));c.bonus=(c.bonus||[]).filter(w=>bonusAll.has(w));
   c.revealed=c.revealed||{};c.hints=c.hints|0;
   G={idx:i,L,tset,bonusAll,found:new Set(c.found),bonus:new Set(c.bonus),sel:[],slot:L.letters.map((_,k)=>k),pos:[],

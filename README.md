@@ -1,6 +1,6 @@
 # Harf Kilimi
 
-Türkçe kelime bulmaca oyunu. Harfleri parmağınla birleştirip kelime bul, her kelime kilime renkli bir şerit olarak dokunur.
+Türkçe kelime bulmaca oyunu. Harfleri parmağınla birleştirip kelime bul, her kelime kilime renkli bir şerit olarak dokunur. 1000 bölüm, gittikçe zorlaşır.
 
 Oyna: https://rejiiadam-hash.github.io/harf-kilimi/
 
